@@ -1,0 +1,372 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<style>
+:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+*,*::before,*::after{box-sizing:border-box}
+body{margin:0;font:14px/1.4 system-ui,-apple-system,"Segoe UI",sans-serif}
+img{max-width:100%}
+[hidden]{display:none!important}
+</style>
+<title>Inner Scientist Quiz</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+/* Layout: one projector-friendly stage. Question on the left, the live pie readout on the right; stacks on phones. */
+:root{
+  --bg:#EEF1EC; --surface:#FFFFFF; --ink:#16211D; --muted:#56635E; --line:#D0D8D3;
+  --mol:#B8306F; --comp:#2F5BD3; --med:#0C8571; --drug:#B87405;
+  --chosen-bg:#16211D; --chosen-fg:#FFFFFF;
+  --display:"Bricolage Grotesque","Arial Narrow",system-ui,sans-serif;
+  --body:"Atkinson Hyperlegible",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0F1513; --surface:#18201D; --ink:#E8EEEB; --muted:#9AA6A1; --line:#2B3632;
+    --mol:#F06AA8; --comp:#7E9DFF; --med:#3CC7AE; --drug:#F2B23E;
+    --chosen-bg:#E8EEEB; --chosen-fg:#0F1513; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0F1513; --surface:#18201D; --ink:#E8EEEB; --muted:#9AA6A1; --line:#2B3632;
+  --mol:#F06AA8; --comp:#7E9DFF; --med:#3CC7AE; --drug:#F2B23E;
+  --chosen-bg:#E8EEEB; --chosen-fg:#0F1513; color-scheme:dark;
+}
+html,body{min-height:100%}
+body{
+  background:var(--bg); color:var(--ink); font-family:var(--body);
+  font-size:clamp(1rem,.9rem + .35vw,1.2rem); line-height:1.5;
+  padding-left:max(16px,env(safe-area-inset-left,0px));
+  padding-right:max(16px,env(safe-area-inset-right,0px));
+  padding-block:clamp(16px,3vw,40px);
+}
+.app{max-width:1240px;margin:0 auto;display:grid;gap:clamp(20px,3vw,40px)}
+.mono{font-family:var(--mono);font-size:.78rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+button{font:inherit;color:inherit;cursor:pointer}
+button:focus-visible{outline:3px solid var(--comp);outline-offset:3px}
+
+.top{display:flex;flex-wrap:wrap;align-items:end;justify-content:space-between;gap:16px}
+.brand{display:grid;gap:4px;min-width:0}
+.brand h1{margin:0;font-family:var(--display);font-weight:800;font-size:clamp(1.6rem,1.1rem + 2vw,2.6rem);line-height:1.05;letter-spacing:-.02em;text-wrap:balance}
+.brand h1 .mix{background:linear-gradient(90deg,var(--mol),var(--comp),var(--med),var(--drug));-webkit-background-clip:text;background-clip:text;color:transparent}
+.dots{display:flex;gap:8px;flex-wrap:wrap}
+.dot{width:38px;height:38px;border-radius:50%;border:2px solid var(--line);background:transparent;font-family:var(--mono);font-size:.8rem;color:var(--muted);display:grid;place-items:center;padding:0}
+.dot.done{background:var(--line);color:var(--ink)}
+.dot.here{border-color:var(--ink);color:var(--ink)}
+
+.stage{display:grid;gap:clamp(20px,3vw,48px);align-items:start}
+@media (min-width:880px){.stage{grid-template-columns:minmax(0,1.55fr) minmax(300px,1fr)}}
+
+.qcard{display:grid;gap:clamp(16px,2vw,24px);min-width:0}
+.qcard h2{margin:0;font-family:var(--display);font-weight:700;font-size:clamp(1.5rem,1rem + 2.3vw,3rem);line-height:1.1;letter-spacing:-.015em;text-wrap:balance}
+.qhead{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center}
+.part{font-family:var(--display);font-weight:700;font-size:.95rem;padding:4px 12px;border-radius:999px;border:1.5px solid var(--ink)}
+.closing{margin:0;max-width:60ch;font-family:var(--display);font-weight:500;font-size:clamp(1.1rem,1rem + .7vw,1.5rem);line-height:1.3;text-wrap:balance}
+.opts{display:grid;gap:12px}
+.opt{display:grid;grid-template-columns:auto minmax(0,1fr);gap:14px;align-items:center;text-align:left;
+  background:var(--surface);border:2px solid var(--line);border-radius:14px;padding:14px 18px;
+  font-size:clamp(1rem,.92rem + .45vw,1.35rem);line-height:1.35;transition:transform .15s ease,border-color .15s ease,background .15s ease}
+.opt:hover{border-color:var(--ink)}
+.opt:active{transform:scale(.99)}
+.opt .letter{font-family:var(--mono);font-size:.85rem;width:34px;height:34px;border-radius:50%;display:grid;place-items:center;border:1.5px solid currentColor;color:var(--muted)}
+.opt[aria-checked="true"]{background:var(--chosen-bg);color:var(--chosen-fg);border-color:var(--chosen-bg)}
+.opt[aria-checked="true"] .letter{color:var(--chosen-fg);background:transparent}
+.nav{display:flex;gap:12px;flex-wrap:wrap;justify-content:space-between;align-items:center}
+.btn{border:2px solid var(--line);background:transparent;border-radius:999px;padding:10px 20px;font-weight:700}
+.btn:hover{border-color:var(--ink)}
+.btn.primary{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.btn:disabled{opacity:.4;cursor:default}
+.hint{color:var(--muted);font-size:.85rem;margin:0}
+
+.readout{background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:clamp(16px,2vw,28px);display:grid;gap:18px;min-width:0}
+@media (min-width:880px){.readout{position:sticky;top:calc(env(safe-area-inset-top,0px) + 16px)}}
+.donut-wrap{position:relative;width:min(100%,300px);margin:0 auto;aspect-ratio:1;max-width:100%}
+.donut-wrap svg{width:100%;height:100%;display:block}
+.seg{fill:none;stroke-width:30;transition:stroke-dasharray .7s cubic-bezier(.3,.8,.3,1),stroke-dashoffset .7s cubic-bezier(.3,.8,.3,1)}
+.ring{fill:none;stroke:var(--line);stroke-width:30}
+.center{position:absolute;inset:0;display:grid;place-content:center;text-align:center;gap:2px;padding:22%}
+.center .pct{font-family:var(--display);font-weight:800;font-size:clamp(2rem,1.4rem + 2vw,3rem);line-height:1;font-variant-numeric:tabular-nums}
+.center .who{font-family:var(--mono);font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.legend{list-style:none;margin:0;padding:0;display:grid;gap:10px}
+.legend li{display:grid;grid-template-columns:12px minmax(0,1fr) auto;gap:10px;align-items:center}
+.sw{width:12px;height:12px;border-radius:3px}
+.bar{height:6px;border-radius:3px;background:var(--line);overflow:hidden;margin-top:4px}
+.bar span{display:block;height:100%;width:0;transition:width .7s cubic-bezier(.3,.8,.3,1)}
+.legend .nm{font-size:.95rem}
+.legend .pv{font-family:var(--mono);font-size:.85rem;font-variant-numeric:tabular-nums;color:var(--muted)}
+.lean{margin:0;font-size:.95rem;color:var(--muted);text-wrap:pretty}
+.lean b{color:var(--ink)}
+
+/* result */
+.result{display:grid;gap:clamp(24px,3vw,40px)}
+.hero{display:grid;gap:24px;align-items:center}
+@media (min-width:880px){.hero{grid-template-columns:minmax(0,1.4fr) minmax(260px,1fr)}}
+.hero .tag{display:inline-block;font-family:var(--mono);font-size:.8rem;letter-spacing:.08em;text-transform:uppercase;padding:6px 12px;border-radius:999px;color:var(--bg)}
+.hero h2{margin:12px 0 8px;font-family:var(--display);font-weight:800;font-size:clamp(2.2rem,1.4rem + 4vw,4.6rem);line-height:.98;letter-spacing:-.025em;text-wrap:balance}
+.hero .sub{font-family:var(--display);font-weight:500;font-size:clamp(1.1rem,1rem + .8vw,1.6rem);margin:0 0 14px;color:var(--muted)}
+.hero p.blurb{margin:0;max-width:60ch;font-size:clamp(1.05rem,.95rem + .5vw,1.35rem)}
+.hero .also{margin:14px 0 0;color:var(--muted)}
+.fine{font-size:.8rem;color:var(--muted);margin:0}
+.cast{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(230px,1fr))}
+.who-card{border:2px solid var(--line);border-radius:16px;padding:18px;display:grid;gap:8px;align-content:start;background:var(--surface);min-width:0}
+.who-card.top{border-color:currentColor}
+.who-card .k{display:flex;justify-content:space-between;gap:8px;align-items:baseline}
+.who-card h3{margin:0;font-family:var(--display);font-weight:700;font-size:1.2rem;line-height:1.15;color:var(--ink)}
+.who-card .field{font-family:var(--mono);font-size:.72rem;letter-spacing:.08em;text-transform:uppercase}
+.who-card p{margin:0;font-size:.95rem;color:var(--ink)}
+.who-card .p{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.section-h{margin:0;font-family:var(--display);font-weight:700;font-size:1.4rem}
+
+@media (prefers-reduced-motion: reduce){*{transition:none!important}}
+</style>
+
+</head>
+<body>
+<div class="app">
+  <header class="top">
+    <div class="brand">
+      <span class="mono">Biomedical Science · pick your concentration</span>
+      <h1>Who's your <span class="mix">inner scientist?</span></h1>
+    </div>
+    <nav class="dots" id="dots" aria-label="Questions"></nav>
+  </header>
+
+  <main class="stage" id="stage">
+    <section class="qcard" aria-live="polite">
+      <div class="qhead"><span class="part" id="qpart"></span><span class="mono" id="qnum">Question 1</span></div>
+      <h2 id="qtext"></h2>
+      <div class="opts" id="opts" role="radiogroup" aria-labelledby="qtext"></div>
+      <div class="nav">
+        <button class="btn" id="prev" type="button">Back</button>
+        <button class="btn primary" id="next" type="button">Next question</button>
+      </div>
+      <p class="hint">Pick the answer that feels most like you, even if it's a little embarrassing. Keys 1–4 pick, arrows move.</p>
+    </section>
+
+    <aside class="readout" aria-label="Your live readout">
+      <span class="mono">Your readout</span>
+      <div class="donut-wrap">
+        <svg viewBox="0 0 200 200" id="donut" aria-hidden="true"></svg>
+        <div class="center" id="center"></div>
+      </div>
+      <ul class="legend" id="legend"></ul>
+      <p class="lean" id="lean"></p>
+    </aside>
+  </main>
+
+  <section class="result" id="result" hidden>
+    <div class="hero">
+      <div>
+        <span class="tag" id="rTag"></span>
+        <h2 id="rChar"></h2>
+        <p class="sub" id="rSub"></p>
+        <p class="blurb" id="rBlurb"></p>
+        <p class="also" id="rAlso"></p>
+      </div>
+      <div class="readout">
+        <span class="mono">Final readout</span>
+        <div class="donut-wrap">
+          <svg viewBox="0 0 200 200" id="donut2" aria-hidden="true"></svg>
+          <div class="center" id="center2"></div>
+        </div>
+        <ul class="legend" id="legend2"></ul>
+      </div>
+    </div>
+    <p class="closing">Your result is a hypothesis about yourself, not a final answer. You'll test it, revise it, and miss something either way. So pick the regret you can live with.</p>
+    <h3 class="section-h">Meet all four</h3>
+    <div class="cast" id="cast"></div>
+    <div class="nav">
+      <button class="btn" id="backQs" type="button">Back to the questions</button>
+      <button class="btn" id="reset" type="button">Start over</button>
+    </div>
+    <p class="fine">These percentages are pure comedy, not a career assessment. Everyone has a bit of all four.</p>
+  </section>
+</div>
+
+<script>
+const ORDER = ["mol","comp","med","drug"];
+const C = {
+  mol: {name:"Molecular Biology", short:"Molecular", char:"The suspicious investigator",
+    blurb:"You opened the forbidden door. Someone else can build the simulation, but sooner or later a person has to ask what is actually happening inside the system. That person is you, and you won't leave the room until you find out."},
+  comp:{name:"Computational Biology", short:"Computational", char:"Your digital god era",
+    blurb:"You'd automate the group project, rewrite reality like code, and spend an unlimited budget simulating an entire universe. Solving one problem isn't enough for you. You want to build the system that solves problems nobody has found yet."},
+  med: {name:"Medical Biology", short:"Medical", char:"The secretly empathetic strategist",
+    blurb:"Being understood is the compliment that gets you. When a friend falls apart, you stay on the phone, then you figure out what to do next. You want to understand people, but you don't necessarily want to spend all day talking about feelings."},
+  drug:{name:"Drug Design", short:"Drug design", char:"The impatient executioner",
+    blurb:"Inefficiency physically hurts you. You keep asking the one question every drug designer lives by: does this actually work? Ideas are nice. You want them off the whiteboard and doing something real."}
+};
+// Option order in every question: molecular, computational, medical, drug design. Main pick +3, a side flavour +1.
+const PARTS = ["Part 1 · Why computational","Part 2 · My research journey","Part 3 · Opportunities to grab","Part 4 · What I wish I'd known"];
+const Q = [
+  {p:0, t:"You discover a mysterious door in your university basement. The sign says “DO NOT OPEN.”", o:[
+    ["Absolutely opening it. What is this, a side quest?", {mol:3,drug:1}],
+    ["Photograph it, research the building's history, and investigate first.", {comp:3,mol:1}],
+    ["Open it, but only after convincing my friends to come with me.", {med:3,mol:1}],
+    ["Check whether opening it serves any purpose. I have things to do.", {drug:3,comp:1}]]},
+  {p:0, t:"Your professor says: “This model is probably wrong, but it's the best we have.” What do you do with it?", o:[
+    ["Hunt down the exact case where it breaks. That's where the interesting part is.", {mol:3,comp:1}],
+    ["Build my own version tonight. If it's wrong, at least it'll be wrong in a way I understand.", {comp:3,drug:1}],
+    ["Find out who is relying on it right now, and whether anyone has warned them.", {med:3,mol:1}],
+    ["Use it anyway. Half the things that changed the world were built on “probably wrong.”", {drug:3,comp:1}]]},
+  {p:0, t:"Your experiment fails for the third time, and nobody can tell you why. How do you feel?", o:[
+    ["Weirdly excited. A mystery this stubborn means something interesting is hiding in there.", {mol:3,med:1}],
+    ["Frustrated. I want to trace exactly where it went wrong and fix it myself.", {comp:3,drug:1}],
+    ["Worried about the people who were waiting on this result.", {med:3,mol:1}],
+    ["Done with it. Change the approach and find a faster way.", {drug:3,comp:1}]]},
+  {p:0, t:"Your ideal fictional villain origin story?", o:[
+    ["I was right about one tiny detail, nobody listened, and now I'll prove it to everyone.", {mol:3,comp:1}],
+    ["I discovered that the entire universe is badly designed, so I'm rebuilding it.", {comp:3,drug:1}],
+    ["Humanity disappointed me. I tried to help people, and look where that got me.", {med:3,drug:1}],
+    ["I invented a revolutionary solution, and everyone kept asking whether it was practical.", {drug:3,comp:1}]]},
+  {p:1, t:"An AI predicts the structure of a protein nobody has ever seen. Your first move?", o:[
+    ["Grow the crystal and check it myself. I'll believe it when I see it.", {mol:3,comp:1}],
+    ["Find out how the model learned that, then build a better one.", {comp:3,mol:1}],
+    ["Ask which disease that protein is involved in.", {med:3,mol:1}],
+    ["Find the binding pocket and start designing a drug for it.", {drug:3,comp:1}]]},
+  {p:1, t:"Which compliment would secretly make you happiest?", o:[
+    ["“How did you notice that? Nobody else caught it.”", {mol:3,med:1}],
+    ["“I genuinely cannot believe you built that.”", {comp:3,drug:1}],
+    ["“You understand people better than anyone I know.”", {med:3,mol:1}],
+    ["“When you take responsibility for something, it actually gets done.”", {drug:3,med:1}]]},
+  {p:2, t:"You have a question after lecture, but the professor looks busy. You:", o:[
+    ["Show up at office hours with three pages of notes and a diagram.", {mol:3,med:1}],
+    ["Email them at 2 a.m. with the question and a half-built answer attached.", {comp:3,drug:1}],
+    ["Ask a friendly TA first, then go to the professor together.", {med:3,mol:1}],
+    ["Catch them in the hallway, ask in thirty seconds, and leave.", {drug:3,comp:1}]]},
+  {p:2, t:"Group project. Four people, one deadline. What do you actually do?", o:[
+    ["Re-check everyone's part the night before. I found one mistake once and never recovered.", {mol:3,comp:1}],
+    ["Disappear for three days and come back with something nobody asked for, but everyone ends up using.", {comp:3,drug:1}],
+    ["Notice who's been quiet and make sure their idea actually makes it into the final version.", {med:3,mol:1}],
+    ["Ask on day one what actually gets graded, and build only that.", {drug:3,med:1}]]},
+  {p:2, t:"Pick your most suspicious personality flaw.", o:[
+    ["I can spend hours obsessing over one detail and call it research.", {mol:3,comp:1}],
+    ["I have a brilliant idea every 20 minutes and finish approximately 12% of them.", {comp:3,mol:1}],
+    ["I care too much about other people's problems and accidentally adopt them.", {med:3,drug:1}],
+    ["I get impatient with people who keep talking instead of doing something.", {drug:3,comp:1}]]},
+  {p:3, t:"Six months after choosing, your friend in another concentration is doing something very cool. You:", o:[
+    ["Ask to shadow them for a day. I need to see exactly how they did it.", {mol:3,med:1}],
+    ["Start a side project that night, “loosely inspired” by theirs.", {comp:3,mol:1}],
+    ["Celebrate with them, then ask if they're actually happy. Cool and happy aren't the same thing.", {med:3,drug:1}],
+    ["Ask what came out of it. Cool doesn't count until it works.", {drug:3,comp:1}]]}
+];
+
+// Fixed display order per question, so the field behind A/B/C/D changes every time.
+const ORDS = [[1,3,0,2],[2,0,3,1],[3,1,2,0],[0,2,1,3],[2,3,1,0],[1,0,2,3],[3,2,0,1],[0,3,2,1],[2,1,0,3],[3,0,1,2]];
+const disp = n => ORDS[n % ORDS.length];
+const KEY = "inner-scientist-v5";
+let answers = Array(Q.length).fill(null);
+try { const s = JSON.parse(localStorage.getItem(KEY)); if (Array.isArray(s) && s.length === Q.length) answers = s; } catch(e){}
+let cur = Math.max(0, answers.findIndex(a => a === null)); if (answers.every(a => a !== null)) cur = Q.length - 1;
+const save = () => { try { localStorage.setItem(KEY, JSON.stringify(answers)); } catch(e){} };
+const $ = id => document.getElementById(id);
+
+function totals(){
+  const t = {mol:0,comp:0,med:0,drug:0};
+  answers.forEach((a,i) => { if (a === null) return; const w = Q[i].o[a][1]; for (const k in w) t[k] += w[k]; });
+  return t;
+}
+function ranked(t){ return ORDER.slice().sort((a,b) => t[b]-t[a] || ORDER.indexOf(a)-ORDER.indexOf(b)); }
+function pcts(t){
+  const sum = ORDER.reduce((s,k) => s + t[k], 0);
+  const p = {}; ORDER.forEach(k => p[k] = sum ? Math.round(t[k]/sum*100) : 0);
+  return {p, sum};
+}
+
+const R = 80, CIRC = 2*Math.PI*R;
+function drawDonut(svg, center, legend){
+  const t = totals(), {p, sum} = pcts(t);
+  if (!svg.dataset.built){
+    svg.innerHTML = `<circle class="ring" cx="100" cy="100" r="${R}"/>` +
+      `<g transform="rotate(-90 100 100)">` + ORDER.map(k => `<circle class="seg" data-k="${k}" cx="100" cy="100" r="${R}" style="stroke:var(--${k})" stroke-dasharray="0 ${CIRC}"/>`).join("") + `</g>`;
+    svg.dataset.built = "1";
+  }
+  let start = 0;
+  ORDER.forEach(k => {
+    const len = sum ? t[k]/sum*CIRC : 0;
+    const seg = svg.querySelector(`[data-k="${k}"]`);
+    const shown = len > 4 ? len - 2 : len;
+    seg.setAttribute("stroke-dasharray", `${shown} ${CIRC}`);
+    seg.setAttribute("stroke-dashoffset", `${-start}`);
+    start += len;
+  });
+  const top = ranked(t)[0];
+  center.innerHTML = sum
+    ? `<span class="pct" style="color:var(--${top})">${p[top]}%</span><span class="who">${C[top].short}</span>`
+    : `<span class="pct" style="color:var(--muted)">?</span><span class="who">Answer to begin</span>`;
+  legend.innerHTML = ORDER.map(k => `<li><span class="sw" style="background:var(--${k})"></span>
+    <div><span class="nm">${C[k].name}</span><div class="bar"><span style="background:var(--${k});width:${p[k]}%"></span></div></div>
+    <span class="pv">${p[k]}%</span></li>`).join("");
+  return {t, p, sum};
+}
+
+function renderQuiz(){
+  const q = Q[cur];
+  $("qpart").textContent = PARTS[q.p];
+  $("qnum").textContent = `Question ${cur+1} of ${Q.length}`;
+  $("qtext").textContent = q.t;
+  $("opts").innerHTML = disp(cur).map((i,pos) => `<button type="button" class="opt" role="radio" id="opt-${pos}"
+    aria-checked="${answers[cur]===i}" data-i="${i}"><span class="letter">${"ABCD"[pos]}</span><span>${q.o[i][0]}</span></button>`).join("");
+  $("prev").disabled = cur === 0;
+  const last = cur === Q.length - 1;
+  $("next").textContent = last ? "Reveal my character" : "Next question";
+  $("next").disabled = last && answers.every(a => a === null);
+  $("dots").innerHTML = Q.map((_,i) => `<button type="button" class="dot${answers[i]!==null?" done":""}${i===cur?" here":""}"
+    data-i="${i}" aria-label="Question ${i+1}${answers[i]!==null?", answered":""}" ${i===cur?'aria-current="step"':""}>${i+1}</button>`).join("");
+  const {t, p, sum} = drawDonut($("donut"), $("center"), $("legend"));
+  if (!sum){ $("lean").textContent = "Your pie fills in as you answer. Every answer counts toward more than one field."; return; }
+  const [a,b] = ranked(t);
+  $("lean").innerHTML = `Leaning <b>${C[a].name}</b>` + (t[b] ? `, with a little ${C[b].short} energy hiding in the background.` : ".");
+}
+
+function renderResult(){
+  const {t, p} = drawDonut($("donut2"), $("center2"), $("legend2"));
+  const [a,b] = ranked(t);
+  $("rTag").textContent = C[a].name; $("rTag").style.background = `var(--${a})`;
+  $("rChar").textContent = C[a].char;
+  $("rSub").textContent = `${p[a]}% ${C[a].short}`;
+  $("rBlurb").textContent = C[a].blurb;
+  $("rAlso").textContent = t[b] ? `Also detected: ${p[b]}% ${C[b].short}. ${C[b].char} is hiding in the background.` : "";
+  $("cast").innerHTML = ORDER.map(k => `<article class="who-card${k===a?" top":""}" style="${k===a?`color:var(--${k})`:""}">
+    <div class="k"><span class="field" style="color:var(--${k})">${C[k].name}</span><span class="p" style="color:var(--${k})">${p[k]}%</span></div>
+    <h3>${C[k].char}</h3><p>${C[k].blurb}</p></article>`).join("");
+}
+
+function show(view){
+  $("stage").hidden = view !== "quiz"; $("result").hidden = view !== "result";
+  if (view === "quiz") renderQuiz(); else { renderResult(); window.scrollTo({top:0,behavior:"smooth"}); }
+}
+function pick(i){ answers[cur] = answers[cur] === i ? null : i; save(); renderQuiz(); }
+function go(d){
+  if (d > 0 && cur === Q.length - 1){ if (answers.some(a => a !== null)) show("result"); return; }
+  cur = Math.min(Q.length-1, Math.max(0, cur + d)); renderQuiz();
+}
+
+$("opts").addEventListener("click", e => { const b = e.target.closest(".opt"); if (b) pick(+b.dataset.i); });
+$("dots").addEventListener("click", e => { const b = e.target.closest(".dot"); if (!b) return; cur = +b.dataset.i; show("quiz"); });
+$("prev").addEventListener("click", () => go(-1));
+$("next").addEventListener("click", () => go(1));
+$("backQs").addEventListener("click", () => show("quiz"));
+let armed = false;
+$("reset").addEventListener("click", e => {
+  if (!armed){ armed = true; e.currentTarget.textContent = "Tap again to clear answers"; return; }
+  armed = false; e.currentTarget.textContent = "Start over";
+  answers = Array(Q.length).fill(null); cur = 0; save(); show("quiz");
+});
+document.addEventListener("keydown", e => {
+  if (e.metaKey || e.ctrlKey || e.altKey) return;
+  const quiz = !$("stage").hidden;
+  if (quiz && /^[1-4]$/.test(e.key)) pick(disp(cur)[+e.key - 1]);
+  else if (quiz && /^[a-d]$/i.test(e.key)) pick(disp(cur)["abcd".indexOf(e.key.toLowerCase())]);
+  else if (e.key === "ArrowRight") { if (quiz) go(1); }
+  else if (e.key === "ArrowLeft") { if (quiz) go(-1); else show("quiz"); }
+});
+show("quiz");
+</script>
+
+</body>
+</html>
