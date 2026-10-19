@@ -269,7 +269,7 @@ const Q = [
 // Fixed display order per question, so the field behind A/B/C/D changes every time.
 const ORDS = [[0,2,1,3],[0,3,2,1],[2,1,0,3]];
 const disp = n => ORDS[n % ORDS.length];
-const KEY = "inner-scientist-v7";
+const KEY = "inner-scientist-v8";
 let answers = Array(Q.length).fill(null);
 try { const s = JSON.parse(localStorage.getItem(KEY)); if (Array.isArray(s) && s.length === Q.length) answers = s; } catch(e){}
 let cur = Math.max(0, answers.findIndex(a => a === null)); if (answers.every(a => a !== null)) cur = Q.length - 1;
@@ -321,7 +321,7 @@ const RELAY = "https://ntfy.sh/" + TOPIC;
 const SALMA = ["comp","comp","drug"];
 let mode = "connecting";            // connecting | live | manual
 let live = {step:-1, reveal:false}; // step -1 = not started, Q.length = results
-const salmaUpto = () => mode !== "live" ? 0 : Math.min(Q.length, live.reveal ? live.step + 1 : Math.max(live.step, 0));
+const salmaShown = i => answers[i] !== null && answers[i] !== undefined;
 
 function setPill(){
   const el = $("pill");
@@ -329,11 +329,11 @@ function setPill(){
   el.textContent = mode === "live" ? "Live · following Salma" : mode === "manual" ? "Self-paced mode" : "Connecting…";
 }
 function renderSalma(){
-  const n = salmaUpto();
+  const shown = Q.map((_,i) => i).filter(salmaShown), n = shown.length;
   $("salmaBox").hidden = n === 0;
   if (!n) return;
   const t = {mol:0,comp:0,med:0,drug:0};
-  for (let i = 0; i < n; i++){ const w = Q[i].o[ORDER.indexOf(SALMA[i])][1]; for (const k in w) t[k] += w[k]; }
+  shown.forEach(i => { const w = Q[i].o[ORDER.indexOf(SALMA[i])][1]; for (const k in w) t[k] += w[k]; });
   const {p} = pcts(t), top = ranked(t)[0];
   $("salmaBar").innerHTML = ORDER.map(k => `<span style="background:var(--${k});width:${p[k]}%"></span>`).join("");
   $("salmaLine").innerHTML = `Salma is <b>${p[top]}% ${C[top].short}</b> after ${n} answer${n>1?"s":""}.`;
@@ -342,14 +342,16 @@ function renderSalma(){
 function renderQuiz(){
   setPill();
   const waiting = mode === "live" && live.step < 0;
-  $("qnav").hidden = mode === "live";
+  const lastOpen = mode === "live" && cur === Q.length-1 && live.step >= Q.length-1 && answers[cur] !== null;
+  $("qnav").hidden = mode === "live" && !lastOpen;
+  $("prev").hidden = mode === "live";
   if (waiting){
     $("qpart").textContent = "Starting soon"; $("qnum").textContent = "";
     $("qtext").innerHTML = '<span class="waiting">Keep this page open. Salma will open question 1 in a moment.</span>';
     $("opts").innerHTML = ""; $("dots").innerHTML = "";
   } else {
     const q = Q[cur];
-    const salmaPick = cur < salmaUpto() ? ORDER.indexOf(SALMA[cur]) : -1;
+    const salmaPick = salmaShown(cur) ? ORDER.indexOf(SALMA[cur]) : -1;
     $("qpart").textContent = PARTS[q.p];
     $("qnum").textContent = `Question ${cur+1} of ${Q.length}`;
     $("qtext").textContent = q.t;
@@ -370,9 +372,14 @@ function renderQuiz(){
   $("lean").innerHTML = `Leaning <b>${C[a].name}</b>` + (t[b] ? `, with a little ${C[b].short} energy hiding in the background.` : ".");
 }
 
+let roomTimer = null;
+function pollRoom(){
+  fetch(RES + "/json?poll=1&since=" + (live.sid || "3h")).then(r => r.text()).then(txt => showRoom(tallyFrom(txt))).catch(() => {});
+}
 function renderResult(){
   const {t, p} = drawDonut($("donut2"), $("center2"), $("legend2"));
   try { sendResult(); } catch(e){}
+  if (!roomTimer && !HOST && !SCREEN){ setTimeout(pollRoom, 2500); roomTimer = setInterval(pollRoom, 15000); }
   const [a,b] = ranked(t);
   $("rTag").textContent = C[a].name; $("rTag").style.background = `var(--${a})`;
   $("rChar").textContent = C[a].char;
@@ -452,8 +459,9 @@ function showRoom(tally){
 // ---- Audience: follow the presenter ----
 function applyState(st){
   if (!st || typeof st.step !== "number") return;
-  live = {step: Math.max(-1, Math.min(Q.length, st.step|0)), reveal: !!st.reveal};
+  live = {step: Math.max(-1, Math.min(Q.length, st.step|0)), reveal: !!st.reveal, sid: st.sid || live.sid};
   if (live.step >= Q.length){ if ($("result").hidden) show("result"); showRoom(st.tally); return; }
+  if (!$("result").hidden && live.step >= Q.length-1) return;
   if (live.step >= 0) cur = live.step;
   show("quiz");
 }
@@ -487,11 +495,11 @@ async function fetchTally(sid){
 }
 function remote(){
   const STEPS = [{step:-1,reveal:false}];
-  for (let i = 0; i < Q.length; i++){ STEPS.push({step:i,reveal:false}, {step:i,reveal:true}); }
+  for (let i = 0; i < Q.length; i++){ STEPS.push({step:i,reveal:false}); }
   STEPS.push({step:Q.length,reveal:false});
   let at = 0, sid = Math.floor(Date.now()/1000), tally = null, timer = null;
   const label = st => st.step < 0 ? "Waiting screen" : st.step >= Q.length ? "Everyone's character + room chart"
-    : `Question ${st.step+1}` + (st.reveal ? " · your answer shown" : " · answer hidden");
+    : `Question ${st.step+1}`;
   const pickText = i => { const o = Q[i].o[ORDER.indexOf(SALMA[i])][0]; return `${"ABCD"[disp(i).indexOf(ORDER.indexOf(SALMA[i]))]}: ${o}`; };
   document.querySelector(".app").innerHTML = `
     <div class="remote">
@@ -501,7 +509,7 @@ function remote(){
       <div class="row"><button class="btn" id="rBack" type="button">Back one step</button><button class="btn" id="rSend" type="button">Resend</button></div>
       <p class="hint" id="rStatus">Connecting to the relay…</p>
       <section class="room" id="rRoom" hidden><span class="mono">The whole room</span><h3 id="rRoomHead"></h3><div class="rbars" id="rBars"></div></section>
-      <p class="fine">Tap the big button each time you click to a quiz slide in PowerPoint. Question slide = question appears on phones. Answer slide = your pick and your pie appear. The last step shows everyone their character and the room chart.</p>
+      <p class="fine">Tap the big button once each time you reach a quiz slide. Your pick and your pie appear on each phone as soon as that person answers. After the last question, tap once more to show everyone their character and the room chart.</p>
       <button class="btn" id="rFresh" type="button">Start fresh for a new audience</button>
     </div>`;
   const state = () => Object.assign({sid}, STEPS[at], at === STEPS.length-1 && tally ? {tally} : {});
@@ -509,12 +517,12 @@ function remote(){
     const st = STEPS[at], nx = STEPS[at+1];
     $("rNow").textContent = label(st);
     $("rPick").textContent = st.step >= 0 && st.step < Q.length ? "Your pick: " + pickText(st.step) : "";
-    $("rNext").textContent = nx ? "Next: " + (nx.step < 0 ? "waiting screen" : nx.step >= Q.length ? "show characters + room chart" : nx.reveal ? `reveal your answer to Q${nx.step+1}` : `show Question ${nx.step+1}`) : "Quiz finished";
+    $("rNext").textContent = nx ? "Next: " + (nx.step < 0 ? "waiting screen" : nx.step >= Q.length ? "show characters + room chart" : `show Question ${nx.step+1}`) : "Quiz finished";
     $("rNext").disabled = !nx; $("rBack").disabled = at === 0;
     const final = at === STEPS.length-1;
     $("rRoom").hidden = !final || !tally;
     if (final && tally){ const n = roomBars($("rBars"), tally); $("rRoomHead").textContent = `${n} ${n===1?"person":"people"} reported`; }
-    clearInterval(timer); if (final) timer = setInterval(poll, 4000);
+    clearInterval(timer); if (final) timer = setInterval(poll, 10000);
   };
   const send = async () => {
     $("rStatus").textContent = "Sending…";
@@ -547,7 +555,7 @@ function remote(){
   latestState().then(st => {
     if (!st){ $("rStatus").textContent = "Connected. Tap the big button when you reach question 1."; send(); return; }
     if (st.sid) sid = st.sid;
-    const k = STEPS.findIndex(x => x.step === st.step && x.reveal === !!st.reveal);
+    const k = STEPS.findIndex(x => x.step === st.step);
     if (k >= 0){ at = k; tally = st.tally || null; draw(); if (at === STEPS.length-1) poll(); }
     $("rStatus").textContent = "Connected. Picked up where you left off.";
   }).catch(() => { $("rStatus").textContent = "Couldn't reach the relay yet. Check your internet."; });
@@ -564,14 +572,15 @@ function screen(){
   let sid = null;
   const tick = async () => {
     try {
-      if (!sid){ const st = await latestState(); sid = st && st.sid; }
+      const st = await latestState(); sid = (st && st.sid) || sid;
       const t = await fetchTally(sid), n = roomBars($("sBars"), t);
       $("sCount").textContent = n ? `${n} ${n===1?"person has":"people have"} finished. Updates every few seconds.` : "Waiting for the first results…";
     } catch(e){ $("sCount").textContent = "Can't reach the relay right now. Retrying…"; }
   };
-  tick(); setInterval(tick, 3000);
+  tick(); setInterval(tick, 8000);
 }
 
+window.addEventListener("hashchange", () => location.reload());
 if (HOST) remote(); else if (SCREEN) screen(); else { show("quiz"); follow(); }
 </script>
 
